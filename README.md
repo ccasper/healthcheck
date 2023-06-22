@@ -37,3 +37,18 @@ The core of the script is one main function that calls 3 simple helpers for read
       - Working Example: ```DEBUG=1; Run "Check SSH" /etc/init.d/ssh status; DEBUG=0```
    
 Everything else in the file is mostly stand alone check functions that can be easily split out into new bash scripts or more added to the file.
+
+### UpdateStatus
+
+This is a very simple method designed to latch on to the worst case status.
+
+For example, if you previously saw CRITICAL in your check, and you're still going through different iterations of devices and the latest device was OK, you want to maintain the status of CRITICAL for the individual check. This is also used to maintain the final status of the script based on all the checks that were run. This behavior is done like this:
+
+```STATUS=$(UpdateStatus <current latched status ... usually $STATUS> <new status from command ... usually $?>)```
+
+Examples will make this more clear hopefully:
+ - STATUS=$WARNING when calling STATUS=$(UpdateStatus $WARNING $OK)
+ - STATUS=$CRITICAL when calling STATUS=$(UpdateStatus $OK $CRITICAL)
+ - STATUS=$CRITICAL when calling STATUS=$(UpdateStatus $WARNING $CRITICAL)
+ - STATUS=$OK when calling STATUS=$(UpdateStatus $OK $OK)
+   
