@@ -225,7 +225,7 @@ function CheckDiskSpace() {
   VALUES=$(echo "$FS_USAGE"|awk '{print $6}'|sed -e 's/%//g')
   RESULTS=""
 
-  for i in $(echo "$COL2"); do {
+  for i in $(echo "$VALUES"); do {
     STATE="(??)"
     if [ $i -ge 95 ]; then
       STATE="CRITICAL"
@@ -277,8 +277,8 @@ function CheckInodeUsage() {
     RESULTS="$(echo -e $i"% $STATE\n$RESULTS")"
   } done
 
-  COL33=$(echo "$RESULTS"|sort -k1n)
-  paste  <(echo "$DISKS") <(echo "$RESULT") -d' '|column -t
+  RESULTS=$(echo "$RESULTS"|sort -k1n)
+  paste  <(echo "$DISKS") <(echo "$RESULTS") -d' '|column -t
 
   return $STATUS
 }
@@ -459,6 +459,8 @@ function Run() {
 if [[ $(hostname) == "box" ]]; then
   Run "Deluge running" CheckProcessRunning deluged
 fi
+
+Run "Check SSH" /etc/init.d/ssh status;
 Run "Cpu Utilization" CheckCpuUtilization
 Run "Last Update" CheckLastUpdate
 Run "Disk Space" CheckDiskSpace
