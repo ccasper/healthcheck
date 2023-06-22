@@ -21,6 +21,7 @@ By default, this does require sudo permission, but you can change/remove check c
 - Distribution at end of life (currently covers Ubuntu/Debian, but can easily be extended to any distro)
 - Network throughput is <4 MiB/s
 - SmartCtl (hard drive firmware smart health)
+- Check that a process is running using ```Run "Checking for process <name>" CheckProcessRunning <name_of_process>```
 - _And more to add or come ... feel free to contribute!_
 
 ## Script Design
