@@ -71,7 +71,7 @@ function PrettyPrintStatus() {
 # Add additional details in standard color.
 # --------------------------------------------------
 function PrettyPrint() {
-  echo -e "$1" #| fold -s -w 80
+  echo -e "$1" | fold -s -w 80
 }
 
 # --------------------------------------------------
@@ -437,9 +437,7 @@ function CheckTest() { echo "Dummy Test $1"; return $2; }
 # --------------------------------------------------
 function Run() {
   PrettyPrintHeader "$1 ..."
-  {
-    OUTPUT=$("${@:2}")
-  } 2>&1
+  OUTPUT=$(${@:2} 2>&1)
   STATUS=$?
   PrettyPrintStatus $STATUS
 
