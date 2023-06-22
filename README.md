@@ -8,13 +8,32 @@ This script is designed to be very fast to learn and read, and add your own chec
 ![Run Screenshot](https://github.com/ccasper/healthcheck/blob/52df49c8c09ce2f8b90fd0d86f03aef467e2893a/images/run_screenshot.png?raw=true
 )
 
+By default, this does require sudo permission, but you can change/remove check cases that need sudo privilege if this is undesired. This checks a wide range of aspects of your machine:
+- CPU utilization
+- last package update
+- disk space
+- memory/RAM usage
+- swap usage
+- inode usage
+- restart required state
+- firewall state (currently expects ufw)
+- fail2ban (which also ensures SSH is in fail2ban rules)
+- Distribution at end of life (currently covers Ubuntu/Debian, but can easily be extended to any distro)
+- Network throughput is <4 MiB/s
+- SmartCtl (hard drive firmware smart health)
+- Check that a process is running using ```Run "Checking for process <name>" CheckProcessRunning <name_of_process>```
+- _And more to add or come ... feel free to contribute!_
+
+## Script Design
+
 The core of the script is one main function that calls 3 simple helpers for readability:
 
 - function **Run()**
-  - ```Run "<print name>" <command with args to call>```
-  - This calls PrettyPrintHeader to print the <print name>
-  - Then it calls PrettyPrintStatus to print the OK/WARNING/CRITICAL status at the end of the line
-  - Then it calls PrettyPrint with the command stderr and stdout combined if there was an error.
-    - For debugging, setting the variable DEBUG=1 before calling Run will print the output regardless of an error.
+  - ```Run "<display name>" <command with args to call>```
+  - This calls PrettyPrintHeader to print the ```<display name>```
+  - Then it calls PrettyPrintStatus to execute ```<command with args to call>``` and prints the [OK|WARNING|CRITICAL] status at the end of the line
+  - Then it calls PrettyPrint with the command stderr and stdout combined if there was a problem.
+    - For debugging, setting the variable DEBUG=1 before calling Run will print the output regardless of the problem.
+      - Working Example: ```DEBUG=1; Run "Check SSH" /etc/init.d/ssh status; DEBUG=0```
    
-Everything else in the file are mostly stand alone check functions that can be easily split out into new bash scripts or add more to the file.
+Everything else in the file is mostly stand alone check functions that can be easily split out into new bash scripts or more added to the file.
