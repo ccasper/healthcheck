@@ -410,10 +410,6 @@ do
       sudo smartctl -H $drive 2>/dev/null |
       grep '^SMART overall\|^SMART Health Status' |
       rev | cut -d ' ' -f1 | rev
-
-      #sudo smartctl -H $drive 2>/dev/null |
-      #grep '^SMART overall' |
-      #awk '{ print $6 }'
    )
 
    [[ "$smart" == "" ]] && smart='unavailable'
