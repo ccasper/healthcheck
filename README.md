@@ -11,8 +11,8 @@ This script is designed to be very fast to learn and read, and add your own chec
 The core of the script is one main function that calls 3 simple helpers for readability:
 
 - function **Run()**
-  - ```Run "<print name>" <command with args to call>```
-  - This calls PrettyPrintHeader to print the ```<print name>```
+  - ```Run "<display name>" <command with args to call>```
+  - This calls PrettyPrintHeader to print the ```<display name>```
   - Then it calls PrettyPrintStatus to execute ```<command with args to call>``` and prints the [OK|WARNING|CRITICAL] status at the end of the line
   - Then it calls PrettyPrint with the command stderr and stdout combined if there was an error.
     - For debugging, setting the variable DEBUG=1 before calling Run will print the output regardless of an error.
