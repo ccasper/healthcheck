@@ -8,6 +8,23 @@ This script is designed to be very fast to learn and read, and add your own chec
 ![Run Screenshot](https://github.com/ccasper/healthcheck/blob/52df49c8c09ce2f8b90fd0d86f03aef467e2893a/images/run_screenshot.png?raw=true
 )
 
+By default, this does require sudo permission, but you can change/remove check cases that need sudo privilege if this is undesired. This checks a wide range of aspects of your machine:
+- CPU utilization
+- last package update
+- disk space
+- memory/RAM usage
+- swap usage
+- inode usage
+- restart required state
+- firewall state (currently expects ufw)
+- fail2ban (which also ensures SSH is in fail2ban rules)
+- Distribution at end of life (currently covers Ubuntu/Debian, but can easily be extended to any distro)
+- Network throughput is <4 MiB/s
+- SmartCtl (hard drive firmware smart health)
+- _And more to add or come ... feel free to contribute!_
+
+## Script Design
+
 The core of the script is one main function that calls 3 simple helpers for readability:
 
 - function **Run()**
