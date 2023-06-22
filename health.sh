@@ -97,7 +97,6 @@ function CheckCpuUtilization() {
 # --------------------------------------------------
 function CheckLastUpdate() {
   UPDATE=$(stat --format="%X" /var/cache/apt/pkgcache.bin)
-  #UPDATE=$(date -d "$(cat /var/log/apt/history.log | grep 'End-Date' | tail -1 | awk -F ': ' '{print $2}')" +'%s')
   NOW=$(date +'%s')
 
   ((DIFF_DAYS=($UPDATE-$NOW)/60/60/24))
