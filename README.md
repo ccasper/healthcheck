@@ -14,7 +14,8 @@ The core of the script is one main function that calls 3 simple helpers for read
   - ```Run "<display name>" <command with args to call>```
   - This calls PrettyPrintHeader to print the ```<display name>```
   - Then it calls PrettyPrintStatus to execute ```<command with args to call>``` and prints the [OK|WARNING|CRITICAL] status at the end of the line
-  - Then it calls PrettyPrint with the command stderr and stdout combined if there was an error.
-    - For debugging, setting the variable DEBUG=1 before calling Run will print the output regardless of an error.
+  - Then it calls PrettyPrint with the command stderr and stdout combined if there was a problem.
+    - For debugging, setting the variable DEBUG=1 before calling Run will print the output regardless of the problem.
+      - Working Example: ```DEBUG=1; Run "Check SSH" /etc/init.d/ssh status; DEBUG=0```
    
 Everything else in the file are mostly stand alone check functions that can be easily split out into new bash scripts or add more to the file.
