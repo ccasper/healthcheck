@@ -288,7 +288,7 @@ function CheckInodeUsage() {
 # --------------------------------------------------
 function CheckFirewall() {
  {
-   echo $(netstat -ntlp | grep -vEe "\s+127[.]|::1" 2>\&1) 2>&1
+   echo $(netstat -ntlp | grep -vEe "\s+127[.]|::1" 2>&1) 2>&1
  } 2>&1
  UFW=$(sudo ufw status verbose)
 
