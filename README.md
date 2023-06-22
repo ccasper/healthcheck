@@ -18,4 +18,4 @@ The core of the script is one main function that calls 3 simple helpers for read
     - For debugging, setting the variable DEBUG=1 before calling Run will print the output regardless of the problem.
       - Working Example: ```DEBUG=1; Run "Check SSH" /etc/init.d/ssh status; DEBUG=0```
    
-Everything else in the file are mostly stand alone check functions that can be easily split out into new bash scripts or add more to the file.
+Everything else in the file is mostly stand alone check functions that can be easily split out into new bash scripts or more added to the file.
