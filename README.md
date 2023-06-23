@@ -12,6 +12,7 @@ By default, this does require sudo permission, but you can change/remove check c
 - CPU utilization
 - last package update
 - disk space
+- Btrfs health
 - memory/RAM usage
 - swap usage
 - inode usage
