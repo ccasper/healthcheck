@@ -2,22 +2,26 @@
 # Easy to use script to do a pretty print compilation of checks on a running linux machine.
 # Author: Cory Casper
 
+HR="--------------------------------------------------------------------------"
+
 # *------ Nice to have general operating system info. ------*
-hostname -f &> /dev/null && printf "Hostname : $(hostname -f)" || printf "Hostname : $(hostname -s)"
-echo -en "\nOperating System : "
+echo $HR
+HOSTNAME=$(hostname -f &> /dev/null && echo $(hostname -f) || echo $(hostname -s))
+echo "Hostname : $HOSTNAME"
+echo -n "Operating System : "
 [ -f /etc/os-release ] && echo $(egrep -w "NAME|VERSION" /etc/os-release|awk -F= '{ print $2 }'|sed 's/"//g') || cat /etc/system-release
-echo -e "Kernel Version :" $(uname -r)
-printf "OS Architecture :"$(arch | grep x86_64 &> /dev/null) && printf " 64 Bit OS\n"  || printf " 32 Bit OS\n"
+echo "Kernel Version :" $(uname -r)
+echo -n "OS Architecture : " $(arch | grep x86_64 &> /dev/null) && echo "64 Bit OS"  || echo "32 Bit OS"
+echo $HR
 
 # Track the final result of all the checks.
 FinalStatus=0
 
 # *------ Status codes ------*
+OK=0
 CRITICAL=1
 WARNING=255
-OK=0
 
-HR="--------------------------------------------------------------------------"
 
 # --------------------------------------------------
 # Returns the value that should be set in the status tracking field.
@@ -114,7 +118,7 @@ function CheckLastUpdate() {
 # Checks the health of BtrFS.
 # --------------------------------------------------
 function CheckBtrfsHealth() {
-  STATUS=0
+  STATUS=$OK
   MOUNT=$(mount|egrep -iw "btrfs"|grep -v "loop"|awk '{print $3}')
   for i in $(echo "$MOUNT"); do
   {
@@ -258,7 +262,7 @@ function CheckDiskSpace() {
 # Checks the inode usage.
 # --------------------------------------------------
 function CheckInodeUsage() {
-  STATUS=0
+  STATUS=$OK
   # Get the disks one per line.
   INODE_INFO=$(df -iPThl -x overlay -x vfat -x btrfs -x fuse -x tmpfs -x iso9660 -x devtmpfs -x squashfs|tail -n +2)
   # Change to split by comma and sort by highest fullness first.
@@ -445,13 +449,19 @@ function CheckTest() { echo "Dummy Test $1"; return $2; }
 # Note: To get debug output: DEBUG=1;Run "name" func; DEBUG=0
 # --------------------------------------------------
 function Run() {
+  # Print the check name.
   PrettyPrintHeader "$1 ..."
+
+  # Run the command and capture stdout and stderr.
   OUTPUT=$(${@:2} 2>&1)
   STATUS=$?
+
+  # Print the resulting status.
   PrettyPrintStatus $STATUS
 
-  # Make it easy to hide all the details for OK statuses.
+  # Only print the output logs for debugging/problem statuses.
   if [[ $STATUS -ne $OK || $DEBUG -eq 1 ]]; then
+    # Print the output logs.
     PrettyPrint "$OUTPUT"
   fi
 
@@ -460,7 +470,7 @@ function Run() {
 # --------------------------------------------------
 # --------------------------------------------------
 #
-# Finally actually trigger all the applicable checks
+# Actually use the methods above to run the checks
 #
 # --------------------------------------------------
 # --------------------------------------------------
@@ -468,7 +478,9 @@ function Run() {
 Run "Read Only Disks" CheckForReadOnlyDisks
 Run "Disk Space" CheckDiskSpace
 Run "Inode Usage" CheckInodeUsage
-if [[ $(hostname) == "box" ]]; then
+
+# Sometimes you may want to limit checks to certain hosts.
+if [[ $HOSTNAME == "box" ]]; then
   Run "Deluge running" CheckProcessRunning deluged
 fi
 
@@ -483,9 +495,10 @@ Run "Firewall" CheckFirewall
 Run "Fail2Ban" CheckFail2Ban 
 Run "CheckDistro End of Life" CheckDistroEndOfSupport
 Run "Check Smartctl" CheckSmartCtl
-#Run "Throughput" CheckNetworkThroughput
+Run "Throughput" CheckNetworkThroughput
 
 # Print the final result of all the calls.
 PrettyPrintHeader "\nFinal result ... "
 PrettyPrintStatus $FinalStatus
+
 exit $FinalStatus
