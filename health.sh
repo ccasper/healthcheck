@@ -201,45 +201,51 @@ function CheckProcessRunning() {
 # Checks the disk space <90% full.
 # --------------------------------------------------
 function CheckDiskSpace() {
-  STATUS=0
-  MOUNT=$(mount|egrep -iw "ext4|ext3|xfs|gfs|gfs2|btrfs"|grep -v "loop"|sort -u -t' ' -k1,2)
-  FS_USAGE=$(df -PThl -x fuse -x tmpfs -x iso9660 -x devtmpfs -x squashfs|awk '!seen[$1]++'|sort -k6n|tail -n +2)
-  IUSAGE=$(df -iPThl -x fuse -x tmpfs -x iso9660 -x devtmpfs -x squashfs|awk '!seen[$1]++'|sort -k6n|tail -n +2)
+  STATUS=$OK
+  MOUNT=$(mount|egrep -iw "ext4|ext3|xfs|gfs|gfs2|btrfs" | egrep -iv "snap|loop" | sed 's/ /,/')
 
-  echo -e "\nChecking For Read-only File System[s]"
-  echo -e "$HR"
-  echo "$MOUNT"| sed 's/remount-ro//'|grep -w ro && echo -e "\n.....Read Only file system[s] found"|| (echo -e ".....No read-only file system[s] found. " && STATUS=1)
+  echo -n "Checking for read-only disks"
+  if ( echo $MOUNT | sed 's/remount-ro//'|grep -w ro ); then
+    echo "$MOUNT ... read only disk found"
+    STATUS=$CRITICAL
+  else 
+    echo "... no read-only disks found. " 
+  fi
 
-  echo -e "\n\nChecking For Currently Mounted File System[s]"
-  echo -e "$HR"
-  echo "$MOUNT"|column -t
+  # Get the disks one per line.
+  DISK_USAGE=$(df -PThl -x fuse -x iso9660 -x devtmpfs -x squashfs|tail -n +2)
+  # Change to split by comma and sort by highest fullness first.
+  DISK_USAGE=$(echo "$DISK_USAGE" | tr -s ' ' ',' | sort -t',' -k6nr)
 
-  echo -e "\n\nChecking For Disk Usage On Mounted File System[s]"
-  echo -e "$HR"
-  echo -e "( 0-90% = OK/HEALTHY,  91-94% = WARNING,  95-100% = CRITICAL )"
-  echo -e "$HR"
-  echo -e "Mounted File System[s] Utilization (Percentage Used):\n"
+  # Print the header.
+  echo "Checking disk usage on mounted disks"
+  echo "$HR"
+  INFO=$(echo $item | awk -F',' '{printf "%-20s %-30s %-10s \n", "Mount", "Device" , "Fullness"}')
+  echo "$INFO Status"
+  echo "$HR"
 
-  DISKS=$(echo "$FS_USAGE"|awk '{print $1 " "$7}')
-  VALUES=$(echo "$FS_USAGE"|awk '{print $6}'|sed -e 's/%//g')
-  RESULTS=""
-
-  for i in $(echo "$VALUES"); do {
+  for item in ${DISK_USAGE// /}; do {
     STATE="(??)"
-    if [ $i -ge 95 ]; then
+    # Get the fullness from the csv line and remove the '%'.
+    FULLNESS=$(echo $item | awk -F',' '{print $6}' | sed 's/%//')
+
+    if [[ $FULLNESS -ge 95 ]]; then
       STATE="CRITICAL"
       STATUS=$(UpdateStatus $STATUS $CRITICAL)
-    elif [[ $i -gt 90 && $i -lt 95 ]]; then
+      continue
+    elif [[ $FULLNESS -gt 90 ]]; then
       STATE="WARNING"
       STATUS=$(UpdateStatus $STATUS $WARNING)
+      continue
     else
       STATE="OK"
     fi
-    RESULTS="$(echo -e $i"% $STATE\n$RESULTS")"
+
+    INFO=$(echo $item | awk -F',' '{printf "%-20s %-30s %-10s \n", $7, $1, $6}')
+    echo "$INFO $STATE"
   } done
 
-  RESULTS=$(echo "$RESULTS"|sort -k1n)
-  paste <(echo "$DISKS") <(echo "$RESULTS") -d' '|column -t
+  echo -e "$HR"
   return $STATUS
 }
 
@@ -248,37 +254,40 @@ function CheckDiskSpace() {
 # --------------------------------------------------
 function CheckInodeUsage() {
   STATUS=0
-  IUSAGE=$(df -iPThl -x overlay -x vfat -x btrfs -x fuse -x tmpfs -x iso9660 -x devtmpfs -x squashfs|awk '!seen[$1]++'|tail -n +2|sort -k6n)
+  # Get the disks one per line.
+  INODE_INFO=$(df -iPThl -x overlay -x vfat -x btrfs -x fuse -x tmpfs -x iso9660 -x devtmpfs -x squashfs|tail -n +2)
+  # Change to split by comma and sort by highest fullness first.
+  INODE_INFO=$(echo "$INODE_INFO" | tr -s ' ' ',' | sort -t',' -k6nr)
 
-  echo -e "\nChecking INode Usage"
-  echo -e "$HR"
-  echo -e "( 0-84% = OK/HEALTHY,  85-95% = WARNING,  95-100% = CRITICAL )"
-  echo -e "$HR"
-  echo -e "INode Utilization (Percentage Used):\n"
+  # Print the header.
+  echo "Checking inode usage on mounted disks"
+  echo "$HR"
+  INFO=$(echo $item | awk -F',' '{printf "%-20s %-30s %-10s \n", "Mount", "Device" , "Fullness"}')
+  echo "$INFO Status"
+  echo "$HR"
 
-  DISKS=$(echo "$IUSAGE"|awk '{print $1" "$7}')
-  VALUES=$(echo "$IUSAGE"|awk '{print $6}'|sed -e 's/%//g')
-  RESULTS=""
-
-  for i in $(echo "$VALUES"); do {
+  for item in ${INODE_INFO// /}; do {
     STATE="(??)"
-    if ! [[ $i = *[[:digit:]]* ]]; then
-      STATE="(unknown)"
-    elif [ $i -ge 95 ]; then
-      STATUS=$(UpdateStatus $STATUS $CRITICAL)
+    # Get the fullness from the csv line and remove the '%'.
+    FULLNESS=$(echo $item | awk -F',' '{print $6}' | sed 's/%//')
+
+    if [[ $FULLNESS -ge 95 ]]; then
       STATE="CRITICAL"
-    elif [[ $i -ge 85 && $i -lt 95 ]]; then
-      STATUS=$(UpdateStatus $STATUS $WARNING)
+      STATUS=$(UpdateStatus $STATUS $CRITICAL)
+      continue
+    elif [[ $FULLNESS -gt 90 ]]; then
       STATE="WARNING"
+      STATUS=$(UpdateStatus $STATUS $WARNING)
+      continue
     else
       STATE="OK"
     fi
-    RESULTS="$(echo -e $i"% $STATE\n$RESULTS")"
+
+    INFO=$(echo $item | awk -F',' '{printf "%-20s %-30s %-10s \n", $7, $1, $6}')
+    echo "$INFO $STATE"
   } done
 
-  RESULTS=$(echo "$RESULTS"|sort -k1n)
-  paste  <(echo "$DISKS") <(echo "$RESULTS") -d' '|column -t
-
+  echo -e "$HR"
   return $STATUS
 }
 
@@ -451,6 +460,8 @@ function Run() {
 # --------------------------------------------------
 # --------------------------------------------------
 
+Run "Disk Space" CheckDiskSpace
+Run "Inode Usage" CheckInodeUsage
 if [[ $(hostname) == "box" ]]; then
   Run "Deluge running" CheckProcessRunning deluged
 fi
@@ -458,17 +469,15 @@ fi
 Run "Check SSH" /etc/init.d/ssh status;
 Run "Cpu Utilization" CheckCpuUtilization
 Run "Last Update" CheckLastUpdate
-Run "Disk Space" CheckDiskSpace
 Run "Btrfs" CheckBtrfsHealth
 Run "Memory" CheckMemoryFree
 Run "Swap" CheckSwapFree
-Run "Inode Usage" CheckInodeUsage
 Run "Restart required" CheckRestartRequired
 Run "Firewall" CheckFirewall 
 Run "Fail2Ban" CheckFail2Ban 
 Run "CheckDistro End of Life" CheckDistroEndOfSupport
 Run "Check Smartctl" CheckSmartCtl
-Run "Throughput" CheckNetworkThroughput
+#Run "Throughput" CheckNetworkThroughput
 
 # Print the final result of all the calls.
 PrettyPrintHeader "\nFinal result ... "
