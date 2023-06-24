@@ -198,9 +198,9 @@ function CheckProcessRunning() {
 }
 
 # --------------------------------------------------
-# Checks the disk space <90% full.
+# Checks to see if any disks are mounted read only which can indicate mounting problems.
 # --------------------------------------------------
-function CheckDiskSpace() {
+function CheckForReadOnlyDisks() {
   STATUS=$OK
   MOUNT=$(mount|egrep -iw "ext4|ext3|xfs|gfs|gfs2|btrfs" | egrep -iv "snap|loop" | sed 's/ /,/')
 
@@ -211,11 +211,16 @@ function CheckDiskSpace() {
   else 
     echo "... no read-only disks found. " 
   fi
+  return $STATUS
+}
+
+function CheckDiskSpace() {
+  STATUS=$OK
 
   # Get the disks one per line.
-  DISK_USAGE=$(df -PThl -x fuse -x iso9660 -x devtmpfs -x squashfs|tail -n +2)
+  DISK_INFO=$(df -PThl -x fuse -x iso9660 -x devtmpfs -x squashfs|tail -n +2)
   # Change to split by comma and sort by highest fullness first.
-  DISK_USAGE=$(echo "$DISK_USAGE" | tr -s ' ' ',' | sort -t',' -k6nr)
+  DISK_INFO=$(echo "$DISK_USAGE" | tr -s ' ' ',' | sort -t',' -k6nr)
 
   # Print the header.
   echo "Checking disk usage on mounted disks"
@@ -460,6 +465,7 @@ function Run() {
 # --------------------------------------------------
 # --------------------------------------------------
 
+Run "Read Only Disks" CheckForReadOnlyDisks
 Run "Disk Space" CheckDiskSpace
 Run "Inode Usage" CheckInodeUsage
 if [[ $(hostname) == "box" ]]; then
