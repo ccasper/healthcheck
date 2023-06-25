@@ -12,6 +12,8 @@ echo -n "Operating System : "
 [ -f /etc/os-release ] && echo $(egrep -w "NAME|VERSION" /etc/os-release|awk -F= '{ print $2 }'|sed 's/"//g') || cat /etc/system-release
 echo "Kernel Version :" $(uname -r)
 echo -n "OS Architecture : " $(arch | grep x86_64 &> /dev/null) && echo "64 Bit OS"  || echo "32 Bit OS"
+IP=$(ip route get 8.8.8.8 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
+echo "IP : $IP"
 echo $HR
 
 # Track the final result of all the checks.
@@ -315,7 +317,9 @@ function CheckFirewall() {
  echo " ufw show added # To see rules before enabling."
  echo " ufw allow ssh"
  echo " ufw default deny incoming"
- echo " ufw allow from 192.168.86.0/24"
+ BASEIP=`echo $IP | cut -d"." -f1-3`
+
+ echo " ufw allow from $BASEIP.0/24"
  echo " ufw enable"
 
  # Is it enabled.
@@ -491,7 +495,7 @@ Run "Btrfs" CheckBtrfsHealth
 Run "Memory" CheckMemoryFree
 Run "Swap" CheckSwapFree
 Run "Restart required" CheckRestartRequired
-Run "Firewall" CheckFirewall 
+Run "Firewall" CheckFirewall
 Run "Fail2Ban" CheckFail2Ban 
 Run "CheckDistro End of Life" CheckDistroEndOfSupport
 Run "Check Smartctl" CheckSmartCtl
