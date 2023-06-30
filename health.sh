@@ -12,7 +12,7 @@ echo -n "Operating System : "
 [ -f /etc/os-release ] && echo $(egrep -w "NAME|VERSION" /etc/os-release|awk -F= '{ print $2 }'|sed 's/"//g') || cat /etc/system-release
 echo "Kernel Version :" $(uname -r)
 echo -n "OS Architecture : " $(arch | grep x86_64 &> /dev/null) && echo "64 Bit OS"  || echo "32 Bit OS"
-IP=$(ip route get 8.8.8.8 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
+IP=$( ( ip route get 8.8.8.8 2> /dev/null ) | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
 echo "IP : $IP"
 echo $HR
 
@@ -132,6 +132,16 @@ function CheckBtrfsHealth() {
 }
 
 # --------------------------------------------------
+# Checks the Network Connectivity.
+# --------------------------------------------------
+function CheckNetworkConnectivity() {
+  IP=$(ip route get 8.8.8.8)
+  if [[ $? -ne 0 ]]; then
+    return $CRITICAL;
+  fi
+}
+
+# --------------------------------------------------
 # Checks the network throughput is < 4 MiB/s
 # --------------------------------------------------
 function CheckNetworkThroughput() {
@@ -210,8 +220,8 @@ function CheckForReadOnlyDisks() {
   STATUS=$OK
   MOUNT=$(mount|egrep -iw "ext4|ext3|xfs|gfs|gfs2|btrfs" | egrep -iv "snap|loop" | sed 's/ /,/')
 
-  echo -n "Checking for read-only disks"
-  if ( echo $MOUNT | sed 's/remount-ro//'|grep -w ro ); then
+  echo "Checking for read-only disks"
+  if ( echo $MOUNT | sed 's/remount-ro//g'|grep -w ro ); then
     echo "$MOUNT ... read only disk found"
     STATUS=$CRITICAL
   else 
@@ -441,6 +451,36 @@ done
 }
 
 # --------------------------------------------------
+# Checks if the hard drive host is seeing errors on i
+# SATA SError expansion
+# If any bits in the SATA SError register are set, the SError register contents will be expanded into its component bits, for example:
+
+# SError: { PHYRdyChg CommWake }
+
+# These bits are set by the SATA host interface in response to error conditions
+# on the SATA link. Unless a drive hotplug or unplug operation occurred, it is
+# generally not normal to see any of these bits set. If they are, it usually
+# points strongly toward a hardware problem (often a bad SATA cable or a bad or
+# inadequate power supply).
+# --------------------------------------------------
+function CheckSataHostInterface() {
+  STATUS=$OK
+  IN=$(dmesg |grep SError)
+  if [[ $IN != "" ]]; then
+    echo "SATA host link showing errors, likely due to a bad SATA cable or attachment"
+    STATUS=$CRITICAL
+    echo $HR
+    echo "Host ada adapter to device mapping:"
+    echo $HR
+  #INODE_INFO=$(echo "$INODE_INFO" | tr -s ' ' ',' | sort -t',' -k6nr)
+    OUT=$(find -L /sys/bus/pci/devices/*/ata*/host*/target* -maxdepth 3 -name "sd*" 2>/dev/null | egrep block |egrep --colour '(ata[0-9]*)|(sd.*)' | tr -s ' ' ',')
+    echo $OUT
+  fi
+  return $STATUS
+}
+
+
+# --------------------------------------------------
 # Simple check for returning statuses easily for testing.
 # Usage: CheckTest "Test critical" $CRITICAL
 # --------------------------------------------------
@@ -479,6 +519,8 @@ function Run() {
 # --------------------------------------------------
 # --------------------------------------------------
 
+Run "Check Sata Host Interface" CheckSataHostInterface
+Run "Network Connection" CheckNetworkConnectivity
 Run "Read Only Disks" CheckForReadOnlyDisks
 Run "Disk Space" CheckDiskSpace
 Run "Inode Usage" CheckInodeUsage
@@ -495,11 +537,11 @@ Run "Btrfs" CheckBtrfsHealth
 Run "Memory" CheckMemoryFree
 Run "Swap" CheckSwapFree
 Run "Restart required" CheckRestartRequired
+Run "CheckDistro End of Life" CheckDistroEndOfSupport
+Run "Throughput" CheckNetworkThroughput
+Run "Check Smartctl" CheckSmartCtl
 Run "Firewall" CheckFirewall
 Run "Fail2Ban" CheckFail2Ban 
-Run "CheckDistro End of Life" CheckDistroEndOfSupport
-Run "Check Smartctl" CheckSmartCtl
-Run "Throughput" CheckNetworkThroughput
 
 # Print the final result of all the calls.
 PrettyPrintHeader "\nFinal result ... "
