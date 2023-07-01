@@ -22,7 +22,7 @@ FinalStatus=0
 # *------ Status codes ------*
 OK=0
 CRITICAL=1
-WARNING=255
+WARNING=254
 
 
 # --------------------------------------------------
@@ -34,10 +34,10 @@ WARNING=255
 # --------------------------------------------------
 function UpdateStatus() {
   # If the saved status is critical, keep it critical.
-  if [[ $1 -eq $CRITICAL ]]; then
+  if [[ $1 -eq $CRITICAL || $2 -eq $CRITICAL ]]; then
     echo $CRITICAL; return 0
   fi
-  # If the new status is critical, set it critical.
+  # If the new status is not OK or WARNING, set it critical.
   if [[ $2 -ne $OK && $2 -ne $WARNING ]]; then
     echo $CRITIAL; return 0
   fi
@@ -468,14 +468,16 @@ function CheckSataHostInterface() {
   IN=$(dmesg |grep SError)
   if [[ $IN != "" ]]; then
     echo "SATA host link showing errors, likely due to a bad SATA cable or attachment"
-    STATUS=$CRITICAL
+    STATUS=$WARNING
     echo $HR
     echo "Host ada adapter to device mapping:"
     echo $HR
   #INODE_INFO=$(echo "$INODE_INFO" | tr -s ' ' ',' | sort -t',' -k6nr)
-    OUT=$(find -L /sys/bus/pci/devices/*/ata*/host*/target* -maxdepth 3 -name "sd*" 2>/dev/null | egrep block |egrep --colour '(ata[0-9]*)|(sd.*)' | tr -s ' ' ',')
+    OUT=$(find -L /sys/bus/pci/devices/*/ata*/host*/target* -maxdepth 3 -name "sd*" 2>/dev/null | egrep block |egrep --colour '(ata[0-9]*)|(sd.*)') # | tr -s ' ' ',')
     echo $OUT
   fi
+  echo $HR
+  echo $IN
   return $STATUS
 }
 
