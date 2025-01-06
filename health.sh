@@ -2,8 +2,8 @@
 # Easy to use script to do a pretty print compilation of checks on a running linux machine.
 # Author: Cory Casper
 
-SERVER=0
-SUDO=1
+SERVER=1 # TRUE, do server type checks in addition to client type checks.
+SUDO=1 # TRUE, do root privilege checks
 
 Help()
 {
