@@ -5,7 +5,7 @@ The purpose of this script is to have a nice way to periodically check on the he
 
 This script is designed to be very fast to learn and read, and add your own checks either by calling other scripts or adding another function check in the file.
 
-![Run Screenshot](https://github.com/ccasper/healthcheck/blob/52df49c8c09ce2f8b90fd0d86f03aef467e2893a/images/run_screenshot.png?raw=true
+![Run Screenshot](https://github.com/ccasper/healthcheck/blob/main/images/run_screenshot.png?raw=true
 )
 
 By default, this does require sudo permission, but you can change/remove check cases that need sudo privilege if this is undesired. This checks a wide range of aspects of your machine:
