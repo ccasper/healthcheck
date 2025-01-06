@@ -2,6 +2,35 @@
 # Easy to use script to do a pretty print compilation of checks on a running linux machine.
 # Author: Cory Casper
 
+SERVER=0
+SUDO=1
+
+Help()
+{
+   # Display Help
+   echo "Checks the health status of your server or client."
+   echo
+   echo "Syntax: ./health.sh [-g|h|v|V]"
+   echo "options:"
+   echo "c     Client check mode."
+   echo "u     Run only user checks, no checks requiring root/sudo."
+   echo "h     Print this Help."
+   echo
+}
+
+while getopts ":huc:" option; do
+   case $option in
+      h) Help; exit;;
+      c) SERVER=0;;
+      u) SUDO=0;;
+     \?) # Invalid option
+         echo "Error: Invalid option"
+         exit;;
+   esac
+done
+
+# run server checks, setting to zero will avoid server specific checks.
+DMESG=./dmesg
 HR="--------------------------------------------------------------------------"
 
 # *------ Nice to have general operating system info. ------*
@@ -16,7 +45,7 @@ IP=$( ( ip route get 8.8.8.8 2> /dev/null ) | sed -n '/src/{s/.*src *\([^ ]*\).*
 echo "IP : $IP"
 echo $HR
 
-# Track the final result of all the checks.
+# Track the final result of all the checks which is updated when printing [STATUS].
 FinalStatus=0
 
 # *------ Status codes ------*
@@ -186,7 +215,14 @@ function CheckMemoryFree() {
 function CheckSwapFree() {
   susage=$(free| awk '/Swap/{printf("SWAP Usage: %.2f%%\n"), $3/$2*100}' |  awk '{print $3}' | cut -d"." -f1)
   echo "Current Swap Usage: $susage%"
-  if [ $susage -ge 50 ]; then
+
+  SWAPPINESS="$(cat /proc/sys/vm/swappiness)"
+  if [[ $SWAPPINESS > 10 ]]; then
+    echo "Tip: Consider lowering your vm.swappiness from $SWAPPINESS to 1"
+  fi
+
+  if [ $susage -ge 90 ]; then
+	  
     return $CRITICAL
   elif [ $susage -ge 25 ]; then
     return $WARNING
@@ -276,7 +312,12 @@ function CheckDiskSpace() {
 function CheckInodeUsage() {
   STATUS=$OK
   # Get the disks one per line.
-  INODE_INFO=$(df -iPThl -x overlay -x vfat -x btrfs -x fuse -x tmpfs -x iso9660 -x devtmpfs -x squashfs|tail -n +2)
+  INODE_INFO=$(df -iPThl -x overlay -x vfat -x btrfs -x fuse -x tmpfs -x iso9660 -x devtmpfs -x squashfs | tail -n +2)
+
+  # Remove fuse AppImage type images like the following:
+  # Flameshot-12.1.0.x86_64.AppImage fuse.Flameshot-12.1.0.x86_64.AppImage    456   456     0  100% /tmp/.mount_FlamesiKkGfd
+  INODE_INFO=$(echo "$INODE_INFO" | sed  "/\\Wfuse\.*/d" )
+
   # Change to split by comma and sort by highest fullness first.
   INODE_INFO=$(echo "$INODE_INFO" | tr -s ' ' ',' | sort -t',' -k6nr)
 
@@ -290,7 +331,7 @@ function CheckInodeUsage() {
   for item in ${INODE_INFO// /}; do {
     STATE="(??)"
     # Get the fullness from the csv line and remove the '%'.
-    FULLNESS=$(echo $item | awk -F',' '{print $6}' | sed 's/%//')
+    FULLNESS=$(echo $item | awk -F',' '{print $6}' | sed 's/%//' | sed 's/^-$/0/')
 
     if [[ $FULLNESS -ge 95 ]]; then
       STATE="CRITICAL"
@@ -465,7 +506,7 @@ done
 # --------------------------------------------------
 function CheckSataHostInterface() {
   STATUS=$OK
-  IN=$(dmesg |grep SError)
+  IN=$($DMESG |grep SError)
   if [[ $IN != "" ]]; then
     echo "SATA host link showing errors, likely due to a bad SATA cable or attachment"
     STATUS=$WARNING
@@ -473,6 +514,53 @@ function CheckSataHostInterface() {
     echo "Host ada adapter to device mapping:"
     echo $HR
   #INODE_INFO=$(echo "$INODE_INFO" | tr -s ' ' ',' | sort -t',' -k6nr)
+    OUT=$(find -L /sys/bus/pci/devices/*/ata*/host*/target* -maxdepth 3 -name "sd*" 2>/dev/null | egrep block |egrep --colour '(ata[0-9]*)|(sd.*)') # | tr -s ' ' ',')
+    echo $OUT
+  fi
+  echo $HR
+  echo $IN
+  return $STATUS
+}
+
+# --------------------------------------------------
+# Checks if the hard drive host is seeing errors on i
+# SATA SError expansion
+# If any bits in the SATA SError register are set, the SError register contents will be expanded into its component bits, for example:
+
+# SError: { PHYRdyChg CommWake }
+
+# These bits are set by the SATA host interface in response to error conditions
+# on the SATA link. Unless a drive hotplug or unplug operation occurred, it is
+# generally not normal to see any of these bits set. If they are, it usually
+# points strongly toward a hardware problem (often a bad SATA cable or a bad or
+# inadequate power supply).
+# --------------------------------------------------
+function CheckBtrfsErrorMessages() {
+  STATUS=$OK
+  IN=$($DMESG |grep "BTRFS error")
+  if [[ $IN != "" ]]; then
+    echo "BTRFS showing errors, likely due to a btrfs partition issues"
+    STATUS=$ERROR
+    echo $HR
+    echo "Host ada adapter to device mapping:"
+    echo $HR
+    OUT=$(find -L /sys/bus/pci/devices/*/ata*/host*/target* -maxdepth 3 -name "sd*" 2>/dev/null | egrep block |egrep --colour '(ata[0-9]*)|(sd.*)') # | tr -s ' ' ',')
+    echo $OUT
+  fi
+  echo $HR
+  echo $IN
+  return $STATUS
+}
+
+function CheckBtrfsInvalidMessages() {
+  STATUS=$OK
+  IN=$($DMESG |grep "BTRFS info")
+  if [[ $IN != "" ]]; then
+    echo "BTRFS showing errors, likely due to a btrfs partition issues"
+    STATUS=$ERROR
+    echo $HR
+    echo "Host ada adapter to device mapping:"
+    echo $HR
     OUT=$(find -L /sys/bus/pci/devices/*/ata*/host*/target* -maxdepth 3 -name "sd*" 2>/dev/null | egrep block |egrep --colour '(ata[0-9]*)|(sd.*)') # | tr -s ' ' ',')
     echo $OUT
   fi
@@ -521,29 +609,38 @@ function Run() {
 # --------------------------------------------------
 # --------------------------------------------------
 
-Run "Check Sata Host Interface" CheckSataHostInterface
 Run "Network Connection" CheckNetworkConnectivity
 Run "Read Only Disks" CheckForReadOnlyDisks
 Run "Disk Space" CheckDiskSpace
 Run "Inode Usage" CheckInodeUsage
+Run "Cpu Utilization" CheckCpuUtilization
+Run "Last Update" CheckLastUpdate
+Run "Memory" CheckMemoryFree
+Run "Swap" CheckSwapFree
+Run "Restart required" CheckRestartRequired
+Run "CheckDistro End of Life" CheckDistroEndOfSupport
+Run "Throughput" CheckNetworkThroughput
 
 # Sometimes you may want to limit checks to certain hosts.
 if [[ $HOSTNAME == "box" ]]; then
   Run "Deluge running" CheckProcessRunning deluged
 fi
 
-Run "Check SSH" /etc/init.d/ssh status;
-Run "Cpu Utilization" CheckCpuUtilization
-Run "Last Update" CheckLastUpdate
-Run "Btrfs" CheckBtrfsHealth
-Run "Memory" CheckMemoryFree
-Run "Swap" CheckSwapFree
-Run "Restart required" CheckRestartRequired
-Run "CheckDistro End of Life" CheckDistroEndOfSupport
-Run "Throughput" CheckNetworkThroughput
-Run "Check Smartctl" CheckSmartCtl
-Run "Firewall" CheckFirewall
-Run "Fail2Ban" CheckFail2Ban 
+
+# If the user said only run user level checks, then don't run these.
+if [[ $SUDO == 1 ]]; then
+  Run "Check Sata Host Interface" CheckSataHostInterface
+  Run "Btrfs" CheckBtrfsHealth
+  Run "Btrfs Invalid" CheckBtrfsInvalidMessages
+  Run "Check Smartctl" CheckSmartCtl
+  Run "Firewall" CheckFirewall
+fi
+
+# if the user said to run only client type checks, then skip these.
+if [[ $SERVER == 1 ]]; then
+  Run "Check SSH" /etc/init.d/ssh status;
+  Run "Fail2Ban" CheckFail2Ban 
+fi
 
 # Print the final result of all the calls.
 PrettyPrintHeader "\nFinal result ... "
