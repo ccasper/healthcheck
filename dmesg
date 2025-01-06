@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Set 1 == 0 to run test dmesg output listed below.
+if [[ 1 == 1 ]]; then
+  sudo dmesg
+  exit 1
+fi
+
+# Fake example for debugging checks.
+cat <<EOF
+kernel: Stuff
+kernel: BTRFS info (device sdd1): The free space cache file (26872905728) is invalid. skip it
+kernel: Stuff
+EOF
